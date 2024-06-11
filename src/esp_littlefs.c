@@ -573,7 +573,7 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t* conf)
         uint32_t flash_page_size = g_rom_flashchip.page_size;
         uint32_t log_page_size = CONFIG_LITTLEFS_PAGE_SIZE;
         if (log_page_size % flash_page_size != 0) {
-            ESP_LOGE(TAG, "LITTLEFS_PAGE_SIZE is not multiple of flash chip page size (%d)",
+            ESP_LOGE(TAG, "LITTLEFS_PAGE_SIZE is not multiple of flash chip page size (%lu)",
                     flash_page_size);
             err = ESP_ERR_INVALID_ARG;
             goto exit;
@@ -1250,7 +1250,7 @@ static off_t vfs_littlefs_lseek(void* ctx, int fd, off_t offset, int mode) {
     if(res < 0){
         errno = lfs_errno_remap(res);
 #ifndef CONFIG_LITTLEFS_USE_ONLY_HASH
-        ESP_LOGV(TAG, "Failed to seek file \"%s\" to offset %08x. Error %s (%d)",
+        ESP_LOGV(TAG, "Failed to seek file \"%s\" to offset %08x. Error %s (%ld)",
                 file->path, (unsigned int)offset, esp_littlefs_errno(res), res);
 #else
         ESP_LOGV(TAG, "Failed to seek FD %d to offset %08x. Error (%d)",
@@ -1560,7 +1560,7 @@ static int vfs_littlefs_readdir_r(void* ctx, DIR* pdir,
     }
 
     if(info.type == LFS_TYPE_REG) {
-        ESP_LOGV(TAG, "readdir a file of size %d named \"%s\"",
+        ESP_LOGV(TAG, "readdir a file of size %lu named \"%s\"",
                 info.size, info.name);
     }
     else {
@@ -1706,7 +1706,7 @@ static ssize_t vfs_littlefs_truncate( void *ctx, const char *path, off_t size )
     }
     else
     {
-        ESP_LOGV( TAG, "Truncated file %s to %u bytes", path, (uint32_t) size );
+        ESP_LOGV( TAG, "Truncated file %s to %lu bytes", path, (uint32_t) size );
     }
     vfs_littlefs_close( ctx, fd );
     return res;
@@ -1744,7 +1744,7 @@ static int vfs_littlefs_ftruncate(void *ctx, int fd, off_t size)
     }
     else
     {
-        ESP_LOGV( TAG, "Truncated file %s to %u bytes", file->path, (uint32_t) size );
+        ESP_LOGV( TAG, "Truncated file %s to %lu bytes", file->path, (uint32_t) size );
     }
     return res;
 
