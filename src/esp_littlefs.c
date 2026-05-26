@@ -20,6 +20,7 @@
 #include <sys/param.h>
 #include <unistd.h>
 #include "esp_idf_version.h"
+#include "littlefs_flash_worker.h"
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include "spi_flash_mmap.h"
@@ -254,6 +255,11 @@ esp_err_t esp_vfs_littlefs_register(const esp_vfs_littlefs_conf_t * conf)
         ESP_LOGE(TAG, "Failed to initialize LittleFS");
         return err;
     }
+
+    // The mount above ran on this (internal-stack) task and is safe directly.
+    // Start the flash worker now so later PSRAM-stacked tasks (ConsoleRunner,
+    // PlaybackManager) that touch this filesystem are delegated safely.
+    littlefs_flash_worker_start();
 
     int index;
     if (esp_littlefs_by_label(conf->partition_label, &index) != ESP_OK) {
