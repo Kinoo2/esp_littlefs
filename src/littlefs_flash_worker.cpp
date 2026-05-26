@@ -5,6 +5,8 @@
 // Host build: std::thread/mutex/condvar replace FreeRTOS so the worker can be
 // unit-tested without ESP-IDF.
 #include <condition_variable>
+#include <cstdio>
+#include <cstdlib>
 #include <deque>
 #include <mutex>
 #include <thread>
@@ -61,6 +63,15 @@ extern "C" void littlefs_flash_worker_start(void) {
 extern "C" bool littlefs_flash_worker_started(void) { return g_started; }
 
 extern "C" esp_err_t littlefs_flash_worker_run(esp_err_t (*fn)(void *ctx), void *ctx) {
+  if (!g_started) {
+    std::fprintf(stderr, "littlefs_flash_worker_run called before start\n");
+    std::abort();
+  }
+  // Self-dispatch would deadlock: the worker would block waiting for itself.
+  if (std::this_thread::get_id() == g_worker.get_id()) {
+    std::fprintf(stderr, "littlefs_flash_worker_run called from the worker thread — would deadlock\n");
+    std::abort();
+  }
   HostJob job;
   job.fn  = fn;
   job.ctx = ctx;
@@ -89,12 +100,15 @@ extern "C" void kc_lfs_flash_worker_test_shutdown() {
 
 #else // IDF on-target build
 
+#include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
 namespace {
+
+const char *TAG = "lfs_flash_worker";
 
 struct IdfJob {
   esp_err_t (*fn)(void *ctx);
@@ -132,6 +146,8 @@ extern "C" void littlefs_flash_worker_start(void) {
   BaseType_t ok = xTaskCreate(workerTask, "lfs_flash", kStackBytes, nullptr, kWorkerPrio, &g_task);
   configASSERT(ok == pdPASS);
   g_started = true;
+  ESP_LOGI(TAG, "started (stack=%lu, prio=%u, queue=%u)", (unsigned long)kStackBytes,
+           (unsigned)kWorkerPrio, (unsigned)kQueueDepth);
 }
 
 extern "C" bool littlefs_flash_worker_started(void) { return g_started; }

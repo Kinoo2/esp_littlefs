@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <cstdio>
-#include <vector>
 
 extern "C" void kc_lfs_flash_worker_test_shutdown();
 

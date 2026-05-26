@@ -18,5 +18,6 @@ flash_worker_test_bin: $(SRCS) $(SRCDIR)/littlefs_flash_worker.h
 
 clean:
 	rm -f flash_worker_test_bin
+	rm -rf flash_worker_test_bin.dSYM
 
 .PHONY: test clean
