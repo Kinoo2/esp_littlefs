@@ -6,7 +6,7 @@
 CXX      ?= g++
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -O1 -g -pthread -DKC_LFS_FLASH_WORKER_TEST_HOOKS
 SRCDIR   := ../src
-STUBDIR  := ../../../kc_common/test/include
+STUBDIR  := include
 
 SRCS := littlefs_flash_worker_test.cpp $(SRCDIR)/littlefs_flash_worker.cpp
 
