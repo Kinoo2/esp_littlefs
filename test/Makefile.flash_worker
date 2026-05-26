@@ -1,0 +1,22 @@
+# Host-compile test for littlefs_flash_worker. No ESP-IDF required.
+#
+# make -f Makefile.flash_worker test
+# make -f Makefile.flash_worker clean
+
+CXX      ?= g++
+CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -O1 -g -pthread -DKC_LFS_FLASH_WORKER_TEST_HOOKS
+SRCDIR   := ../src
+STUBDIR  := ../../../kc_common/test/include
+
+SRCS := littlefs_flash_worker_test.cpp $(SRCDIR)/littlefs_flash_worker.cpp
+
+test: flash_worker_test_bin
+	./flash_worker_test_bin
+
+flash_worker_test_bin: $(SRCS) $(SRCDIR)/littlefs_flash_worker.h
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -I$(STUBDIR) -o $@ $(SRCS) -pthread
+
+clean:
+	rm -f flash_worker_test_bin
+
+.PHONY: test clean
