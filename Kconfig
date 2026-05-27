@@ -143,4 +143,17 @@ menu "LittleFS"
             In LittleFS flush() does not write data to the flash, and fsync() call needed after.
             With this feature fflush() will write data to the storage.
 
+    config LITTLEFS_FLASH_WORKER_PRIORITY
+        int "Flash worker task priority"
+        default 10
+        help
+            Priority of the internal-SRAM-stack worker task that runs littlefs
+            partition IO on behalf of callers whose stack is in PSRAM (where the
+            SPI-flash cache-disable would fault on the ESP32-S3). Set this at or
+            above the priority of the highest-priority task that performs
+            littlefs IO (e.g. an audio playback task); a lower value lets a
+            mid-priority task preempt the worker while a higher-priority caller
+            is blocked waiting on it (priority inversion). The worker blocks
+            between ops, so a high value cannot starve other tasks.
+
 endmenu

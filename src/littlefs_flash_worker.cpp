@@ -100,6 +100,9 @@ extern "C" void kc_lfs_flash_worker_test_shutdown() {
 
 #else // IDF on-target build
 
+#include "sdkconfig.h"
+
+#include <atomic>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -115,17 +118,23 @@ struct IdfJob {
   void *ctx;
   esp_err_t result;
   SemaphoreHandle_t done;
+  StaticSemaphore_t done_storage;
 };
 
 constexpr UBaseType_t kQueueDepth = 4;
 // littlefs read/prog/erase callbacks only call esp_partition_*; a few hundred
 // bytes of stack. 3 KiB leaves comfortable headroom on an internal-SRAM stack.
-constexpr uint32_t kStackBytes    = 3072;
-constexpr UBaseType_t kWorkerPrio = tskIDLE_PRIORITY + 3;
+constexpr uint32_t kStackBytes = 3072;
+// Must be >= the priority of the highest-priority task that performs littlefs
+// IO (e.g. an audio task). The worker does brief, blocking work, so a high
+// priority can't starve the system; but a lower priority would let a
+// mid-priority task preempt the worker while a higher-priority caller is
+// blocked waiting on it (priority inversion).
+constexpr UBaseType_t kWorkerPrio = CONFIG_LITTLEFS_FLASH_WORKER_PRIORITY;
 
-QueueHandle_t g_queue = nullptr;
-TaskHandle_t g_task   = nullptr;
-bool g_started        = false;
+QueueHandle_t g_queue       = nullptr;
+TaskHandle_t g_task         = nullptr;
+std::atomic<bool> g_started{false};
 
 void workerTask(void *) {
   IdfJob *job = nullptr;
@@ -158,8 +167,10 @@ extern "C" esp_err_t littlefs_flash_worker_run(esp_err_t (*fn)(void *ctx), void 
   // task's own stack is internal SRAM, so it never reaches this path for
   // itself. Guard against accidental self-dispatch (would deadlock) anyway.
   configASSERT(xTaskGetCurrentTaskHandle() != g_task);
-  IdfJob job{fn, ctx, ESP_OK, xSemaphoreCreateBinary()};
-  configASSERT(job.done != nullptr);
+  // The completion semaphore is backed by storage inside the job, which lives
+  // on the (blocked) caller's stack — no per-op heap allocation, so no OOM path.
+  IdfJob job{fn, ctx, ESP_OK, nullptr, {}};
+  job.done = xSemaphoreCreateBinaryStatic(&job.done_storage);
   IdfJob *p     = &job;
   BaseType_t ok = xQueueSend(g_queue, &p, portMAX_DELAY);
   configASSERT(ok == pdPASS);
